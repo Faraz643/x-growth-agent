@@ -12,6 +12,13 @@ type XAccount = {
   tweet_count: number;
 };
 
+type NicheProfile = {
+  topics: string[];
+  audience: string;
+  expertise: string[];
+  voice_notes: string;
+};
+
 const navItems = ["Overview", "Opportunities", "Content", "Replies", "People", "Analytics"];
 
 const opportunities = [
@@ -38,11 +45,20 @@ const opportunities = [
   },
 ];
 
+const defaultNiche: NicheProfile = {
+  topics: ["Development", "AI", "Building products", "Vibe coding", "Monetization"],
+  audience: "Developers, AI builders, indie hackers and people interested in building and monetizing products.",
+  expertise: ["Product development", "AI tools", "Vibe coding"],
+  voice_notes: "Direct, practical, curious and honest. Prefer real building experiences over generic advice.",
+};
+
 export default function Home() {
   const [active, setActive] = useState("Overview");
   const [account, setAccount] = useState<XAccount | null>(null);
+  const [niche, setNiche] = useState<NicheProfile>(defaultNiche);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [savingNiche, setSavingNiche] = useState(false);
   const [message, setMessage] = useState("");
   const [dismissed, setDismissed] = useState<number[]>([]);
 
@@ -52,15 +68,19 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("x_connected");
     const error = params.get("x_error");
-
     if (connected) setMessage("X account connected successfully.");
     if (error) setMessage(error);
     if (connected || error) window.history.replaceState({}, "", window.location.pathname);
 
-    fetch("/api/x/status")
-      .then((response) => response.json())
-      .then((data) => setAccount(data.account ?? null))
-      .catch(() => setMessage("Could not load X connection status."))
+    Promise.all([
+      fetch("/api/x/status").then((response) => response.json()),
+      fetch("/api/niche").then((response) => response.json()),
+    ])
+      .then(([xData, nicheData]) => {
+        setAccount(xData.account ?? null);
+        if (nicheData.profile) setNiche(nicheData.profile);
+      })
+      .catch(() => setMessage("Could not load account setup."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -88,34 +108,39 @@ export default function Home() {
     }
   }
 
+  async function saveNiche() {
+    setSavingNiche(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/niche", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(niche),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save niche");
+      setNiche(data.profile);
+      setMessage("Growth profile saved.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not save niche");
+    } finally {
+      setSavingNiche(false);
+    }
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">X</div>
-          <div><strong>Growth Agent</strong><span>Human-first growth OS</span></div>
-        </div>
-
+        <div className="brand"><div className="brand-mark">X</div><div><strong>Growth Agent</strong><span>Human-first growth OS</span></div></div>
         <nav className="nav">
-          {navItems.map((item) => (
-            <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}>
-              <span>{item === "Overview" ? "⌂" : item === "Opportunities" ? "✦" : item === "Content" ? "✎" : item === "Replies" ? "↪" : item === "People" ? "◎" : "◒"} &nbsp; {item}</span>
-            </button>
-          ))}
+          {navItems.map((item) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}><span>{item === "Overview" ? "⌂" : item === "Opportunities" ? "✦" : item === "Content" ? "✎" : item === "Replies" ? "↪" : item === "People" ? "◎" : "◒"} &nbsp; {item}</span></button>)}
         </nav>
-
-        <div className="sidebar-bottom">
-          <div className="status"><i className="dot" /><span>{account ? `Connected · @${account.username}` : "Agent ready · Setup mode"}</span></div>
-        </div>
+        <div className="sidebar-bottom"><div className="status"><i className="dot" /><span>{account ? `Connected · @${account.username}` : "Agent ready · Setup mode"}</span></div></div>
       </aside>
 
       <main className="main">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">{active.toUpperCase()}</p>
-            <h1>{account ? `Welcome back, ${account.name}.` : "Good morning, builder."}</h1>
-            <p className="subtitle">{account ? `Tracking @${account.username} and preparing the growth research loop.` : "Connect your X account to start building the real growth loop."}</p>
-          </div>
+          <div><p className="eyebrow">{active.toUpperCase()}</p><h1>{account ? `Welcome back, ${account.name}.` : "Good morning, builder."}</h1><p className="subtitle">{account ? `Tracking @${account.username} and preparing the growth research loop.` : "Connect your X account to start building the real growth loop."}</p></div>
           <div className="avatar">{account?.name?.charAt(0).toUpperCase() ?? "F"}</div>
         </header>
 
@@ -133,47 +158,30 @@ export default function Home() {
             <div className="card-head"><h2>Top opportunities</h2><span>Ranked by relevance & growth potential</span></div>
             {visible.length === 0 ? <p className="subtitle">All current opportunities dismissed. Research will replenish this queue.</p> : visible.map((item) => {
               const index = opportunities.indexOf(item);
-              return (
-                <article className="opportunity" key={item.text}>
-                  <div>
-                    <p className="post">{item.text}</p>
-                    <div className="meta"><span>{item.author}</span><span>#{item.topic}</span><span>{item.reason}</span></div>
-                    <div className="actions"><button className="btn primary" onClick={() => alert("Reply drafting is the next agent module.")}>Draft reply</button><button className="btn" onClick={() => setDismissed([...dismissed, index])}>Ignore</button></div>
-                  </div>
-                  <div className="score">{item.score}</div>
-                </article>
-              );
+              return <article className="opportunity" key={item.text}><div><p className="post">{item.text}</p><div className="meta"><span>{item.author}</span><span>#{item.topic}</span><span>{item.reason}</span></div><div className="actions"><button className="btn primary" onClick={() => alert("Reply drafting is the next agent module.")}>Draft reply</button><button className="btn" onClick={() => setDismissed([...dismissed, index])}>Ignore</button></div></div><div className="score">{item.score}</div></article>;
             })}
           </div>
 
           <div className="grid">
-            <div className="card">
-              <div className="card-head"><h2>4 → 1,000</h2><span>Growth experiment</span></div>
-              <div className="goal"><div className="goal-number">{account?.followers_count ?? 4}</div><div className="subtitle">followers today</div><div className="progress"><div style={{ width: `${Math.min(((account?.followers_count ?? 4) / 1000) * 100, 100)}%` }} /></div><div className="goal-row"><span>Current</span><span>1,000 goal</span></div></div>
-            </div>
-
+            <div className="card"><div className="card-head"><h2>4 → 1,000</h2><span>Growth experiment</span></div><div className="goal"><div className="goal-number">{account?.followers_count ?? 4}</div><div className="subtitle">followers today</div><div className="progress"><div style={{ width: `${Math.min(((account?.followers_count ?? 4) / 1000) * 100, 100)}%` }} /></div><div className="goal-row"><span>Current</span><span>1,000 goal</span></div></div></div>
             <div className="card">
               <div className="card-head"><h2>Account setup</h2><span>Phase 2</span></div>
-              {account ? (
-                <>
-                  <div className="plan-item"><div className="plan-icon">✓</div><div><strong>@{account.username} connected</strong><p>Your X profile is stored securely for the agent.</p></div></div>
-                  <div className="plan-item"><div className="plan-icon">↻</div><div><strong>Sync recent posts</strong><p>Pull your latest posts into the local growth dataset.</p></div></div>
-                  <button className="btn primary" onClick={syncX} disabled={syncing}>{syncing ? "Syncing…" : "Sync X data"}</button>
-                </>
-              ) : (
-                <>
-                  <div className="plan-item"><div className="plan-icon">①</div><div><strong>Connect your X account</strong><p>Uses OAuth 2.0 PKCE with read-only scopes for this phase.</p></div></div>
-                  <button className="btn primary" onClick={() => { window.location.href = "/api/auth/x/connect"; }}>Connect X</button>
-                </>
-              )}
+              {account ? <><div className="plan-item"><div className="plan-icon">✓</div><div><strong>@{account.username} connected</strong><p>Your X profile is stored securely for the agent.</p></div></div><div className="plan-item"><div className="plan-icon">↻</div><div><strong>Sync recent posts</strong><p>Pull your latest posts into the local growth dataset.</p></div></div><button className="btn primary" onClick={syncX} disabled={syncing}>{syncing ? "Syncing…" : "Sync X data"}</button></> : <><div className="plan-item"><div className="plan-icon">①</div><div><strong>Connect your X account</strong><p>Uses OAuth 2.0 PKCE with read-only scopes for this phase.</p></div></div><button className="btn primary" onClick={() => { window.location.href = "/api/auth/x/connect"; }}>Connect X</button></>}
             </div>
           </div>
         </section>
 
-        <section className="empty-connect">
-          <h3>{account ? "Next: teach the agent your niche" : "Approval-first by design"}</h3>
-          <p>{account ? "The next layer will save your topics, audience, expertise and writing preferences, then use them to score real X conversations. No automatic posting or replying is enabled." : "This phase connects your account but does not post, reply, follow or like anything. We will add those actions only after the research and recommendation loop is proven."}</p>
+        <section className="card niche-card">
+          <div className="card-head"><div><h2>Growth profile</h2><span>Used by the research and scoring agents</span></div><button className="btn primary" onClick={saveNiche} disabled={savingNiche || !account}>{savingNiche ? "Saving…" : "Save profile"}</button></div>
+          <div className="niche-grid">
+            <label><span>Topics</span><input value={niche.topics.join(", ")} onChange={(event) => setNiche({ ...niche, topics: event.target.value.split(",").map((value) => value.trim()).filter(Boolean) })} placeholder="AI, development, SaaS" /></label>
+            <label><span>Audience</span><input value={niche.audience} onChange={(event) => setNiche({ ...niche, audience: event.target.value })} placeholder="Who should follow you?" /></label>
+            <label><span>Expertise</span><input value={niche.expertise.join(", ")} onChange={(event) => setNiche({ ...niche, expertise: event.target.value.split(",").map((value) => value.trim()).filter(Boolean) })} placeholder="What can you speak about?" /></label>
+            <label><span>Voice notes</span><textarea value={niche.voice_notes} onChange={(event) => setNiche({ ...niche, voice_notes: event.target.value })} placeholder="How should the agent sound?" rows={3} /></label>
+          </div>
         </section>
+
+        <section className="empty-connect"><h3>{account ? "Approval-first by design" : "Approval-first by design"}</h3><p>This phase connects your account and stores the information needed for research. It does not post, reply, follow or like anything automatically.</p></section>
       </main>
     </div>
   );
