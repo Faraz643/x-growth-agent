@@ -4,18 +4,7 @@ body { background: #08090c; color: #f4f5f7; font-family: Inter, ui-sans-serif, s
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
 
-:root {
-  --bg: #08090c;
-  --panel: rgba(18, 20, 26, .82);
-  --panel-2: #11131a;
-  --border: #252936;
-  --muted: #9298a8;
-  --text: #f5f7fb;
-  --accent: #8b7cff;
-  --accent-soft: rgba(139,124,255,.13);
-  --green: #43d19e;
-  --yellow: #e9c46a;
-}
+:root { --bg: #08090c; --panel: rgba(18, 20, 26, .82); --panel-2: #11131a; --border: #252936; --muted: #9298a8; --text: #f5f7fb; --accent: #8b7cff; --accent-soft: rgba(139,124,255,.13); --green: #43d19e; }
 
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 240px 1fr; background: radial-gradient(circle at 70% -10%, rgba(139,124,255,.12), transparent 32%), var(--bg); }
 .sidebar { border-right: 1px solid var(--border); padding: 24px 16px; display: flex; flex-direction: column; gap: 28px; background: rgba(8,9,12,.75); }
@@ -36,6 +25,7 @@ button { cursor: pointer; }
 h1 { font-size: clamp(25px, 3vw, 34px); letter-spacing: -.045em; margin: 0; }
 .subtitle { color: var(--muted); margin: 8px 0 0; font-size: 14px; }
 .avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #2b2f3b, #151720); border: 1px solid var(--border); display: grid; place-items: center; font-weight: 700; }
+.notice { margin: -12px 0 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; background: rgba(17,19,26,.8); color: var(--muted); font-size: 12px; }
 
 .grid { display: grid; gap: 14px; }
 .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -56,11 +46,12 @@ h1 { font-size: clamp(25px, 3vw, 34px); letter-spacing: -.045em; margin: 0; }
 .actions { display: flex; gap: 7px; margin-top: 12px; }
 .btn { border: 1px solid var(--border); background: #151720; color: var(--text); padding: 8px 11px; border-radius: 8px; font-size: 11px; }
 .btn:hover { border-color: #414758; }
+.btn:disabled { cursor: not-allowed; opacity: .55; }
 .btn.primary { background: var(--text); color: #090a0d; border-color: var(--text); font-weight: 700; }
 
 .goal { text-align: center; padding: 10px 5px 5px; }
 .progress { height: 8px; background: #1c1f28; border-radius: 999px; overflow: hidden; margin: 18px 0 9px; }
-.progress > div { width: .4%; min-width: 3px; height: 100%; background: var(--accent); border-radius: inherit; }
+.progress > div { min-width: 3px; height: 100%; background: var(--accent); border-radius: inherit; }
 .goal-row { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
 .goal-number { font-size: 42px; font-weight: 800; letter-spacing: -.06em; }
 
@@ -70,9 +61,16 @@ h1 { font-size: clamp(25px, 3vw, 34px); letter-spacing: -.045em; margin: 0; }
 .plan-item strong { display: block; font-size: 12px; }
 .plan-item p { margin: 3px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 
+.niche-card { margin-top: 14px; }
+.niche-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.niche-grid label { display: grid; gap: 6px; }
+.niche-grid label > span { color: var(--muted); font-size: 11px; }
+.niche-grid input, .niche-grid textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: #0d0f14; color: var(--text); padding: 10px 11px; outline: none; resize: vertical; }
+.niche-grid input:focus, .niche-grid textarea:focus { border-color: #4a436e; }
+
 .empty-connect { margin-top: 14px; padding: 24px; border: 1px dashed #343846; border-radius: 14px; background: rgba(17,19,26,.55); }
 .empty-connect h3 { margin: 0; font-size: 14px; }
 .empty-connect p { color: var(--muted); font-size: 12px; line-height: 1.6; max-width: 620px; }
 
 @media (max-width: 900px) { .app-shell { grid-template-columns: 72px 1fr; } .sidebar { padding: 18px 10px; } .brand strong, .brand span, .nav button span, .status span { display: none; } .brand { justify-content: center; padding: 0; } .nav button { text-align: center; font-size: 0; } .nav button::first-letter { font-size: 18px; } .stats { grid-template-columns: repeat(2, 1fr); } .section-grid { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .main { padding: 22px 16px 45px; } .stats { grid-template-columns: 1fr 1fr; } .stat-value { font-size: 22px; } }
+@media (max-width: 600px) { .main { padding: 22px 16px 45px; } .stats { grid-template-columns: 1fr 1fr; } .stat-value { font-size: 22px; } .niche-grid { grid-template-columns: 1fr; } }
