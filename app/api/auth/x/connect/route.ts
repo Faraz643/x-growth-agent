@@ -4,21 +4,18 @@ import { buildAuthorizeUrl, createPkcePair, createState } from "@/lib/x/oauth";
 
 export async function GET(request: Request) {
   try {
-    const { id, isNew } = await getOrCreateAppUser();
+    const { cookieValue } = await getOrCreateAppUser();
     const state = createState();
     const { verifier, challenge } = createPkcePair();
     const response = NextResponse.redirect(buildAuthorizeUrl(state, challenge));
 
-    if (isNew) {
-      response.cookies.set(APP_USER_COOKIE, id, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365,
-      });
-    }
-
+    response.cookies.set(APP_USER_COOKIE, cookieValue, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
     response.cookies.set("x_oauth_state", state, {
       httpOnly: true,
       sameSite: "lax",
