@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentAppUserId } from "@/lib/app-user";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { APP_USER_COOKIE } from "@/lib/app-user";
 import { encryptSecret } from "@/lib/security/token-crypto";
 import { exchangeCode } from "@/lib/x/oauth";
 import { getAuthenticatedUser } from "@/lib/x/client";
@@ -18,10 +18,9 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const oauthError = request.nextUrl.searchParams.get("error");
-  const cookieStore = request.cookies;
-  const expectedState = cookieStore.get("x_oauth_state")?.value;
-  const verifier = cookieStore.get("x_oauth_verifier")?.value;
-  const appUserId = cookieStore.get(APP_USER_COOKIE)?.value;
+  const expectedState = request.cookies.get("x_oauth_state")?.value;
+  const verifier = request.cookies.get("x_oauth_verifier")?.value;
+  const appUserId = await getCurrentAppUserId();
 
   if (oauthError) return redirect({ x_error: "X authorization was cancelled" });
   if (!code || !state || state !== expectedState || !verifier) {
