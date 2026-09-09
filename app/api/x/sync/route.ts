@@ -51,6 +51,6 @@ export async function POST() {
     return NextResponse.json({ synced: true, profile, postsSynced: posts.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "X sync failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error("X SYNC ERROR:", error); return NextResponse.json({ error: message }, { status: 502 });
   }
 }
