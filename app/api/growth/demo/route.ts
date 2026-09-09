@@ -24,11 +24,11 @@ export async function POST() {
     const relationshipRows = [{ app_user_id: appUserId, x_username: "ai_builder_demo", display_name: "AI Builder Demo", niche: "AI / agents", interaction_count: 3, relevance_score: 91, relationship_status: "RECURRING", topics: ["AI agents", "product building"], notes: "Demo relationship. Not a real interaction." }];
     const today = new Date();
     const metricRows = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(today); date.setUTCDate(today.getUTCDate() - i);
+      const date = new Date(today); date.setUTCDate(today.getUTCDate() - i - 20);
       return { app_user_id: appUserId, measured_on: date.toISOString().slice(0, 10), followers: 5 + Math.max(0, 6 - i), following: 30 + i, post_count: 8 + (6 - i), profile_visits: 20 + (6 - i) * 3, impressions: 400 + (6 - i) * 80, likes: 18 + (6 - i) * 3, replies: 5 + (6 - i), reposts: 3 + Math.floor((6 - i) / 2), engagement_rate: 6.5 + (6 - i) * .3, data_source: "demo" };
     });
     const [oppResult, ideaResult, relResult, metricResult] = await Promise.all([
-      supabase.from("opportunities").insert(oppRows), supabase.from("content_ideas").insert(ideaRows), supabase.from("relationships").upsert(relationshipRows, { onConflict: "app_user_id,x_username" }), supabase.from("growth_metrics").upsert(metricRows, { onConflict: "app_user_id,measured_on" }),
+      supabase.from("opportunities").insert(oppRows), supabase.from("content_ideas").insert(ideaRows), supabase.from("relationships").upsert(relationshipRows, { onConflict: "app_user_id,x_username" }), supabase.from("growth_metrics").upsert(metricRows, { onConflict: "app_user_id,measured_on,data_source" }),
     ]);
     if (oppResult.error || ideaResult.error || relResult.error || metricResult.error) throw new Error(oppResult.error?.message || ideaResult.error?.message || relResult.error?.message || metricResult.error?.message || "Demo seed failed");
     return NextResponse.json({ seeded: true, message: "Demo opportunities, content ideas, relationship and isolated demo analytics added. This data is not live X data." });
