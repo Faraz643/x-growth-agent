@@ -7,9 +7,10 @@ const score = (v: unknown) => Math.max(0, Math.min(100, Number.isFinite(Number(v
 export async function GET() {
   try {
     const { appUserId, supabase } = await requireAppUser();
-    const { data, error } = await supabase.from("growth_research").select("*").eq("app_user_id", appUserId).or("expires_at.is.null,expires_at.gt.now()").order("relevance_score", { ascending: false }).order("created_at", { ascending: false }).limit(50);
+    const { data, error } = await supabase.from("growth_research").select("*").eq("app_user_id", appUserId).order("relevance_score", { ascending: false }).order("created_at", { ascending: false }).limit(50);
     if (error) throw new Error(error.message);
-    return NextResponse.json({ research: data ?? [] });
+    const now = Date.now();
+    return NextResponse.json({ research: (data ?? []).filter((row: any) => !row.expires_at || new Date(row.expires_at).getTime() > now) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load research";
     return NextResponse.json({ error: message }, { status: message === "UNAUTHENTICATED" ? 401 : 500 });
@@ -25,7 +26,5 @@ export async function POST(request: Request) {
     const { data, error } = await supabase.from("growth_research").insert({ app_user_id: appUserId, title, topic, summary, source_type: text(body.source_type, 40) || "manual", source_url: text(body.source_url, 1000) || null, relevance_score: score(body.relevance_score), momentum_score: score(body.momentum_score), expires_at: body.expires_at || null }).select("*").single();
     if (error) throw new Error(error.message);
     return NextResponse.json({ research: data }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not save research" }, { status: 400 });
-  }
+  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Could not save research" }, { status: 400 }); }
 }
