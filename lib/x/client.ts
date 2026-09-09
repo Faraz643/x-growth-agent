@@ -6,6 +6,13 @@ import { refreshAccessToken } from "@/lib/x/oauth";
 
 const X_API = "https://api.x.com/2";
 
+export class XApiError extends Error {
+  constructor(public code: "X_API_CREDITS_DEPLETED" | "X_API_REQUEST_FAILED", message: string, public status: number) {
+    super(message);
+    this.name = "XApiError";
+  }
+}
+
 type XAccount = {
   id: string;
   access_token_encrypted: string;
@@ -25,33 +32,28 @@ async function getAccessToken(account: XAccount) {
   const refreshed = await refreshAccessToken(decryptSecret(account.refresh_token_encrypted));
   const expiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
 
-  await supabase
-    .from("x_accounts")
-    .update({
-      access_token_encrypted: encryptSecret(refreshed.access_token),
-      refresh_token_encrypted: refreshed.refresh_token
-        ? encryptSecret(refreshed.refresh_token)
-        : account.refresh_token_encrypted,
-      access_token_expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", account.id);
+  await supabase.from("x_accounts").update({
+    access_token_encrypted: encryptSecret(refreshed.access_token),
+    refresh_token_encrypted: refreshed.refresh_token ? encryptSecret(refreshed.refresh_token) : account.refresh_token_encrypted,
+    access_token_expires_at: expiresAt,
+    updated_at: new Date().toISOString(),
+  }).eq("id", account.id);
 
   return refreshed.access_token;
 }
 
 async function xFetch<T>(account: XAccount, path: string) {
   const token = await getAccessToken(account);
-  const response = await fetch(`${X_API}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-
-  const payload = await response.json();
+  const response = await fetch(`${X_API}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+  const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.detail || payload?.title || "X API request failed");
+    const detail = String(payload?.detail || payload?.title || payload?.error || "X API request failed");
+    const lower = detail.toLowerCase();
+    if (lower.includes("credits depleted") || lower.includes("credit depleted") || lower.includes("credits_depleted")) {
+      throw new XApiError("X_API_CREDITS_DEPLETED", "Your X account is connected, but X API credits are currently unavailable. Existing data remains available.", response.status);
+    }
+    throw new XApiError("X_API_REQUEST_FAILED", detail, response.status);
   }
-
   return payload as T;
 }
 
@@ -61,11 +63,7 @@ export type XMe = {
   username: string;
   description?: string;
   profile_image_url?: string;
-  public_metrics?: {
-    followers_count?: number;
-    following_count?: number;
-    tweet_count?: number;
-  };
+  public_metrics?: { followers_count?: number; following_count?: number; tweet_count?: number };
 };
 
 export async function getAuthenticatedUser(account: XAccount) {
@@ -74,25 +72,10 @@ export async function getAuthenticatedUser(account: XAccount) {
   return payload.data;
 }
 
-export type XPost = {
-  id: string;
-  text: string;
-  author_id: string;
-  created_at?: string;
-  public_metrics?: Record<string, number>;
-};
+export type XPost = { id: string; text: string; author_id: string; created_at?: string; public_metrics?: Record<string, number> };
 
 export async function getUserPosts(account: XAccount, xUserId: string) {
-  const params = new URLSearchParams({
-    max_results: "20",
-    exclude: "retweets,replies",
-    "tweet.fields": "created_at,public_metrics,author_id",
-  });
-
-  const payload = await xFetch<{ data?: XPost[]; meta?: { result_count?: number } }>(
-    account,
-    `/users/${xUserId}/tweets?${params.toString()}`,
-  );
-
+  const params = new URLSearchParams({ max_results: "20", exclude: "retweets,replies", "tweet.fields": "created_at,public_metrics,author_id" });
+  const payload = await xFetch<{ data?: XPost[]; meta?: { result_count?: number } }>(account, `/users/${xUserId}/tweets?${params.toString()}`);
   return payload.data ?? [];
 }
