@@ -1,0 +1,173 @@
+import "server-only";
+import { classifyPost, learningSummary, scoreContentOpportunity, scoreOpportunity, type GrowthProfile, type PostSignal } from "@/lib/growth/intelligence";
+import { DEFAULT_GROWTH_PROFILE } from "@/lib/growth/profile";
+
+type AnyRow = Record<string, any>;
+
+export type GrowthProject = {
+  id?: string;
+  name: string;
+  description: string;
+  stage: string;
+  lessons: string[];
+  technologies: string[];
+  urls: string[];
+  active?: boolean;
+};
+
+export type StrategyInput = {
+  account: AnyRow | null;
+  profileRow: AnyRow | null;
+  opportunities: AnyRow[];
+  ideas: AnyRow[];
+  relationships: AnyRow[];
+  drafts: AnyRow[];
+  posts: AnyRow[];
+  metrics: AnyRow[];
+  projects: GrowthProject[];
+  research: AnyRow[];
+};
+
+const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+const num = (v: unknown) => Number.isFinite(Number(v)) ? Number(v) : 0;
+
+export function normalizeProfile(row?: AnyRow | null): GrowthProfile {
+  return {
+    niche: typeof row?.topics?.join === "function" ? row.topics.join(", ") || DEFAULT_GROWTH_PROFILE.niche : DEFAULT_GROWTH_PROFILE.niche,
+    content_pillars: Array.isArray(row?.content_pillars) && row.content_pillars.length ? row.content_pillars : DEFAULT_GROWTH_PROFILE.content_pillars,
+    tone: Array.isArray(row?.tone) && row.tone.length ? row.tone : DEFAULT_GROWTH_PROFILE.tone,
+    avoid_topics: Array.isArray(row?.avoid_topics) && row.avoid_topics.length ? row.avoid_topics : DEFAULT_GROWTH_PROFILE.avoid_topics,
+    target_followers: Math.max(1, num(row?.target_followers) || DEFAULT_GROWTH_PROFILE.target_followers),
+  };
+}
+
+export function postSignal(post: AnyRow): PostSignal {
+  const metrics = (post.public_metrics ?? {}) as Record<string, unknown>;
+  const engagements = num(metrics.like_count) + num(metrics.reply_count) + num(metrics.retweet_count) + num(metrics.quote_count) + num(metrics.bookmark_count);
+  return {
+    text: String(post.text ?? ""),
+    engagements,
+    impressions: num(metrics.impression_count),
+    ...classifyPost(String(post.text ?? "")),
+  };
+}
+
+export function realPostSignals(posts: AnyRow[]) {
+  return posts.filter((p) => p.data_source !== "demo").map(postSignal);
+}
+
+export function performanceScore(signal: PostSignal) {
+  if (signal.impressions > 0) return clamp((signal.engagements / signal.impressions) * 1000);
+  return clamp(Math.log10(signal.engagements + 1) * 35);
+}
+
+export function accountHealth(account: AnyRow | null, metrics: AnyRow[], profile: GrowthProfile) {
+  const followers = num(account?.followers_count || metrics[0]?.followers);
+  const following = num(account?.following_count || metrics[0]?.following);
+  const posts = num(account?.tweet_count || metrics[0]?.post_count);
+  const followerProgress = clamp((followers / profile.target_followers) * 100);
+  const activity = clamp(posts ? Math.min(100, posts * 3) : 0);
+  const profileQuality = account?.description ? 80 : 45;
+  return {
+    score: clamp(followerProgress * .35 + activity * .25 + profileQuality * .2 + (following > 0 ? 70 : 30) * .2),
+    followers, following, posts, followerProgress,
+    checks: [
+      { key: "profile", label: "Profile context", score: profileQuality, ok: Boolean(account?.description) },
+      { key: "activity", label: "Publishing activity", score: activity, ok: posts > 0 },
+      { key: "measurement", label: "Measurement", score: metrics.length ? 80 : 20, ok: metrics.length > 0 },
+    ],
+  };
+}
+
+export function rankOpportunities(rows: AnyRow[], profile: GrowthProfile, research: AnyRow[]) {
+  const enriched = rows.map((o) => {
+    const researchMatch = research.find((r) => String(r.topic).toLowerCase() === String(o.topic).toLowerCase());
+    const momentum = Math.max(num(o.momentum_score), num(researchMatch?.momentum_score));
+    const score = scoreOpportunity({
+      topic: String(o.topic),
+      content: String(o.content),
+      momentum,
+      relevance: num(o.relevance_score),
+      conversation: num(o.conversation_score),
+      valueAbility: /build|built|project|product|developer|code|agent|api|experiment/i.test(String(o.content)) ? 92 : 62,
+    }, profile);
+    return { ...o, opportunity_score: score, momentum_score: momentum };
+  });
+  return enriched.sort((a, b) => num(b.opportunity_score) - num(a.opportunity_score));
+}
+
+export function rankContent(rows: AnyRow[], profile: GrowthProfile, projects: GrowthProject[]) {
+  const experience = projects.filter((p) => p.active !== false).map((p) => `${p.name} ${p.description} ${p.lessons.join(" ")} ${p.technologies.join(" ")}`).join(" ");
+  return rows.map((idea) => {
+    const score = scoreContentOpportunity({ ...idea, reason: `${idea.reason ?? ""} ${experience}` }, profile);
+    const firstHand = /build|built|debug|ship|project|product|experiment|lesson|implemented|tested/i.test(`${idea.title} ${idea.angle} ${experience}`);
+    return { ...idea, score: clamp(score + (firstHand ? 5 : 0)), first_hand_fit: firstHand };
+  }).sort((a, b) => num(b.score) - num(a.score));
+}
+
+export function relationshipPriority(row: AnyRow) {
+  const interactions = num(row.interaction_count);
+  const relevance = num(row.relevance_score);
+  const recency = row.last_interaction_at ? Math.max(0, 100 - Math.floor((Date.now() - new Date(row.last_interaction_at).getTime()) / 86400000) * 8) : 30;
+  return clamp(relevance * .5 + Math.min(100, interactions * 10) * .25 + recency * .25);
+}
+
+export function buildDailyActions(input: StrategyInput) {
+  const profile = normalizeProfile(input.profileRow);
+  const opportunities = rankOpportunities(input.opportunities, profile, input.research);
+  const content = rankContent(input.ideas, profile, input.projects);
+  const people = [...input.relationships].sort((a, b) => relationshipPriority(b) - relationshipPriority(a));
+  const actions: AnyRow[] = [];
+  if (opportunities[0]) actions.push({ type: "opportunity", priority: opportunities[0].opportunity_score, title: `Join the ${opportunities[0].topic} conversation`, reason: opportunities[0].reason || "High niche fit and room to add first-hand value.", referenceId: opportunities[0].id, action: "generate_reply" });
+  if (content[0]) actions.push({ type: "content", priority: content[0].score, title: `Create: ${content[0].title}`, reason: content[0].reason || "Strong fit with your niche and real experience.", referenceId: content[0].id, action: "generate_draft" });
+  if (people[0]) actions.push({ type: "relationship", priority: relationshipPriority(people[0]), title: `Continue @${people[0].x_username}`, reason: people[0].next_action || `You have ${num(people[0].interaction_count)} interactions and a ${num(people[0].relevance_score)}/100 relevance score.`, referenceId: people[0].id, action: "relationship" });
+  const signals = realPostSignals(input.posts);
+  const learning = learningSummary(signals);
+  if (learning.sufficient && learning.insights[0]) actions.push({ type: "analytics", priority: 72, title: "Use your strongest learned pattern", reason: learning.insights[0], referenceId: null, action: "review_learning" });
+  if (!actions.length) actions.push({ type: "profile", priority: 70, title: "Strengthen your growth profile", reason: "Add a project, experience, or manual opportunity so recommendations can become specific.", referenceId: null, action: "edit_profile" });
+  return actions.sort((a, b) => num(b.priority) - num(a.priority)).slice(0, 5);
+}
+
+export function buildStrategy(input: StrategyInput) {
+  const profile = normalizeProfile(input.profileRow);
+  const signals = realPostSignals(input.posts);
+  const learning = learningSummary(signals);
+  const health = accountHealth(input.account, input.metrics, profile);
+  const opportunities = rankOpportunities(input.opportunities, profile, input.research);
+  const content = rankContent(input.ideas, profile, input.projects);
+  const people = [...input.relationships].sort((a, b) => relationshipPriority(b) - relationshipPriority(a));
+  const latestMetric = input.metrics[0];
+  const followers = health.followers || num(latestMetric?.followers);
+  const trend = input.metrics.length >= 2 ? followers - num(input.metrics[1]?.followers) : null;
+  const data = {
+    realPosts: signals.length,
+    demoPosts: input.posts.length - signals.length,
+    realMetrics: input.metrics.filter((m) => m.data_source !== "demo").length,
+    demoMetrics: input.metrics.filter((m) => m.data_source === "demo").length,
+    lastSuccessfulSyncAt: input.account?.last_successful_sync_at ?? null,
+    xStatus: input.account?.sync_status ?? "unavailable",
+  };
+  return {
+    profile,
+    account: input.account,
+    health,
+    progress: { followers, target: profile.target_followers, remaining: Math.max(0, profile.target_followers - followers), percent: clamp((followers / profile.target_followers) * 100), trend },
+    actions: buildDailyActions(input),
+    opportunities: opportunities.slice(0, 10),
+    content: content.slice(0, 10),
+    people: people.slice(0, 10),
+    learning,
+    dataStatus: data,
+    performance: signals.map((s) => ({ ...s, performanceScore: performanceScore(s) })),
+    projects: input.projects,
+    drafts: input.drafts,
+    research: input.research,
+    guardrails: {
+      autoPublish: false,
+      autoReply: false,
+      massEngagement: false,
+      liveXRequiredForActions: true,
+      message: "Recommendations are approval-first. No post, reply, follow, like, or repost is sent automatically.",
+    },
+  };
+}
