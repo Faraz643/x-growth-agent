@@ -16,7 +16,7 @@ async function loadData(appUserId: string, supabase: any) {
     supabase.from("growth_projects").select("*").eq("app_user_id", appUserId).eq("active", true).order("updated_at", { ascending: false }).limit(20),
     supabase.from("growth_research").select("*").eq("app_user_id", appUserId).order("relevance_score", { ascending: false }).limit(30),
   ]);
-  return { account, profileRow, opportunities: opportunities ?? [], ideas: ideas ?? [], relationships: relationships ?? [], drafts: drafts ?? [], posts: posts ?? [], metrics: metrics ?? [], projects: projects ?? [], research: research ?? [] };
+  return { account, profileRow, opportunities: opportunities ?? [], ideas: ideas ?? [], relationships: relationships ?? [], drafts: drafts ?? [], posts: posts ?? [], metrics: metrics ?? [], projects: projects ?? [], research: (research ?? []).filter((r: any) => !r.expires_at || new Date(r.expires_at).getTime() > Date.now()) };
 }
 
 export async function GET() {
@@ -26,13 +26,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { appUserId, supabase } = await requireAppUser();
-    const body = await request.json();
-    const action = String(body.action || "");
+    const { appUserId, supabase } = await requireAppUser(); const body = await request.json(); const action = String(body.action || "");
     if (!["complete", "save", "reject"].includes(action) || typeof body.title !== "string") return NextResponse.json({ error: "action and title are required" }, { status: 400 });
     const status = action === "complete" ? "completed" : action === "save" ? "saved" : "rejected";
     const { data, error } = await supabase.from("growth_recommendations").insert({ app_user_id: appUserId, recommendation_type: String(body.type || "analytics"), title: body.title.slice(0, 300), reason: String(body.reason || "").slice(0, 1000), score: Math.max(0, Math.min(100, Number(body.score) || 0)), reference_id: typeof body.reference_id === "string" ? body.reference_id : null, status, evidence: typeof body.evidence === "object" && body.evidence ? body.evidence : {} }).select("*").single();
-    if (error) throw new Error(error.message);
-    return NextResponse.json({ recommendation: data }, { status: 201 });
+    if (error) throw new Error(error.message); return NextResponse.json({ recommendation: data }, { status: 201 });
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Could not record recommendation" }, { status: 400 }); }
 }
