@@ -49,6 +49,22 @@ h1 { font-size: clamp(25px, 3vw, 34px); letter-spacing: -.045em; margin: 0; }
 .btn:disabled { cursor: not-allowed; opacity: .55; }
 .btn.primary { background: var(--text); color: #090a0d; border-color: var(--text); font-weight: 700; }
 
+.intelligence-card { margin-top: 14px; }
+.intelligence-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.intelligence-stats > div { padding: 14px 12px; border-right: 1px solid var(--border); }
+.intelligence-stats > div:last-child { border-right: 0; }
+.intelligence-stats span, .intelligence-stats small { display: block; color: var(--muted); font-size: 10px; }
+.intelligence-stats strong { display: block; margin: 6px 0 4px; font-size: 21px; letter-spacing: -.04em; }
+.intel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-top: 16px; }
+.mini-head { color: var(--muted); font-size: 11px; margin-bottom: 9px; }
+.topic-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.topic-list span { display: inline-flex; gap: 7px; align-items: center; border: 1px solid var(--border); background: #0d0f14; padding: 7px 9px; border-radius: 8px; font-size: 11px; }
+.topic-list b { color: #c5bdff; }
+.best-post { border: 1px solid var(--border); background: #0d0f14; border-radius: 9px; padding: 11px; }
+.best-post p { margin: 0; font-size: 12px; line-height: 1.5; }
+.best-post span, .muted-copy { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.best-post span { display: block; margin-top: 8px; }
+
 .goal { text-align: center; padding: 10px 5px 5px; }
 .progress { height: 8px; background: #1c1f28; border-radius: 999px; overflow: hidden; margin: 18px 0 9px; }
 .progress > div { min-width: 3px; height: 100%; background: var(--accent); border-radius: inherit; }
@@ -61,6 +77,13 @@ h1 { font-size: clamp(25px, 3vw, 34px); letter-spacing: -.045em; margin: 0; }
 .plan-item strong { display: block; font-size: 12px; }
 .plan-item p { margin: 3px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 
+.posts-card { margin-top: 14px; }
+.posts-list { display: grid; border-top: 1px solid var(--border); }
+.posts-list article { padding: 13px 0; border-bottom: 1px solid var(--border); }
+.posts-list article:last-child { border-bottom: 0; padding-bottom: 0; }
+.posts-list p { margin: 0; font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
+.posts-list article > div { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 7px; color: var(--muted); font-size: 10px; }
+
 .niche-card { margin-top: 14px; }
 .niche-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .niche-grid label { display: grid; gap: 6px; }
@@ -72,5 +95,7 @@ h1 { font-size: clamp(25px, 3vw, 34px); letter-spacing: -.045em; margin: 0; }
 .empty-connect h3 { margin: 0; font-size: 14px; }
 .empty-connect p { color: var(--muted); font-size: 12px; line-height: 1.6; max-width: 620px; }
 
+@media (max-width: 1000px) { .intelligence-stats { grid-template-columns: repeat(2, 1fr); } .intelligence-stats > div:nth-child(2) { border-right: 0; } .intelligence-stats > div:nth-child(-n+2) { border-bottom: 1px solid var(--border); } }
 @media (max-width: 900px) { .app-shell { grid-template-columns: 72px 1fr; } .sidebar { padding: 18px 10px; } .brand strong, .brand span, .nav button span, .status span { display: none; } .brand { justify-content: center; padding: 0; } .nav button { text-align: center; font-size: 0; } .nav button::first-letter { font-size: 18px; } .stats { grid-template-columns: repeat(2, 1fr); } .section-grid { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .main { padding: 22px 16px 45px; } .stats { grid-template-columns: 1fr 1fr; } .stat-value { font-size: 22px; } .niche-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .intel-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .main { padding: 22px 16px 45px; } .stats { grid-template-columns: 1fr 1fr; } .stat-value { font-size: 22px; } .niche-grid { grid-template-columns: 1fr; } .intelligence-stats { grid-template-columns: 1fr 1fr; } .intelligence-stats > div:nth-child(3) { border-bottom: 1px solid var(--border); } }
