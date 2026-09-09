@@ -18,10 +18,10 @@ export async function POST() {
     const oppRows = opportunities.map(([author_username, author_name, topic, content, relevance_score, momentum_score, conversation_score, suggested_angle]) => ({
       app_user_id: appUserId, author_username, author_name, topic, content, reason: "Demo data for development. Not live X data.", suggested_angle,
       relevance_score, momentum_score, conversation_score,
-      opportunity_score: Math.round(Number(relevance_score) * .3 + Number(momentum_score) * .2 + Number(relevance_score) * .2 + Number(conversation_score) * .15 + 90 * .15), source_type: "demo", status: "open",
+      opportunity_score: Math.round(Number(relevance_score) * .3 + Number(momentum_score) * .2 + Number(relevance_score) * .2 + Number(conversation_score) * .15 + 90 * .15), source_type: "demo", data_source: "demo", status: "open",
     }));
-    const ideaRows = ideas.map(([title, reason, angle, hook, score]) => ({ app_user_id: appUserId, title, reason, angle, hook, score, source_type: "demo", status: "open" }));
-    const relationshipRows = [{ app_user_id: appUserId, x_username: "ai_builder_demo", display_name: "AI Builder Demo", niche: "AI / agents", interaction_count: 3, relevance_score: 91, relationship_status: "RECURRING", topics: ["AI agents", "product building"], notes: "Demo relationship. Not a real interaction." }];
+    const ideaRows = ideas.map(([title, reason, angle, hook, score]) => ({ app_user_id: appUserId, title, reason, angle, hook, score, source_type: "demo", data_source: "demo", status: "open" }));
+    const relationshipRows = [{ app_user_id: appUserId, x_username: "ai_builder_demo", display_name: "AI Builder Demo", niche: "AI / agents", interaction_count: 3, relevance_score: 91, relationship_status: "RECURRING", topics: ["AI agents", "product building"], notes: "Demo relationship. Not a real interaction.", last_topic: "AI agents", next_action: "Demo only — replace with a real relationship before acting." }];
     const today = new Date();
     const metricRows = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(today); date.setUTCDate(today.getUTCDate() - i - 20);
