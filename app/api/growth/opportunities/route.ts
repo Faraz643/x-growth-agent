@@ -2,12 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAppUser } from "@/lib/growth/db";
 import { scoreOpportunity } from "@/lib/growth/profile";
 
-const demo = [
-  { author_username: "@builder_signal", author_name: "Builder Signal", topic: "AI coding agents", content: "The hard part of AI coding agents isn't generation. It's making the agent's actions reviewable and trustworthy.", reason: "Strong overlap with AI + development and a natural place to add first-hand experience.", suggested_angle: "Share what an approval-first workflow changed in your own product.", relevance_score: 95, momentum_score: 82, conversation_score: 91, value: 92 },
-  { author_username: "@devnotes", author_name: "Dev Notes", topic: "Debugging", content: "Spent four hours debugging a feature that looked completely fine from the frontend.", reason: "A problem-solving story fits a builder account better than generic commentary.", suggested_angle: "Explain the debugging path, the misleading signal, and the fix.", relevance_score: 91, momentum_score: 76, conversation_score: 88, value: 94 },
-  { author_username: "@indiebuilds", author_name: "Indie Builds", topic: "Product validation", content: "What is the best way to validate a SaaS idea before spending months building it?", reason: "Direct product-building audience match with an open question.", suggested_angle: "Share a concrete validation experiment and what you learned.", relevance_score: 88, momentum_score: 73, conversation_score: 93, value: 89 },
-];
-
 export async function GET() {
   try {
     const { appUserId, supabase } = await requireAppUser();
@@ -50,8 +44,4 @@ export async function PATCH(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not update opportunity" }, { status: 400 });
   }
-}
-
-export async function seedDemo() {
-  return demo;
 }
