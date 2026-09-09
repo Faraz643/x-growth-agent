@@ -9,7 +9,8 @@ export async function GET() {
     if (error) throw new Error(error.message);
     return NextResponse.json({ replies: data ?? [] });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load replies" }, { status: 401 });
+    const message = error instanceof Error ? error.message : "Could not load replies";
+    return NextResponse.json({ error: message }, { status: message === "UNAUTHENTICATED" ? 401 : 500 });
   }
 }
 
@@ -17,12 +18,15 @@ export async function POST(request: Request) {
   try {
     const { appUserId, supabase } = await requireAppUser();
     const body = await request.json();
-    const author = String(body.author_username || "").slice(0, 100);
+    const author = String(body.author_username || "").replace(/^@/, "").slice(0, 100);
     const topic = String(body.topic || "").slice(0, 200);
     const sourceContent = String(body.source_content || "").slice(0, 5000);
     if (!author || !topic || !sourceContent) return NextResponse.json({ error: "author_username, topic and source_content are required" }, { status: 400 });
+    const { data: projects } = await supabase.from("growth_projects").select("name,description,lessons,technologies").eq("app_user_id", appUserId).eq("active", true).limit(10);
+    const experience = (projects ?? []).map((p: any) => `${p.name}: ${p.description}. Lessons: ${(p.lessons ?? []).join(", ")}.`).join(" ").slice(0, 4000);
     const provider = getAIProvider();
-    const reply = await provider.generateReply({ author, topic, post: sourceContent, niche: String(body.niche || "development and AI") });
+    const reply = await provider.generateReply({ author, topic, post: sourceContent, niche: String(body.niche || "development and AI"), experience });
+    if (!reply.trim() || /^(great post|absolutely|so true|this is so true)[!.\s]*$/i.test(reply.trim())) return NextResponse.json({ error: "Generated reply failed the quality guardrail; try again with more context." }, { status: 422 });
     const { data, error } = await supabase.from("reply_suggestions").insert({ app_user_id: appUserId, opportunity_id: typeof body.opportunity_id === "string" ? body.opportunity_id : null, author_username: author, source_content: sourceContent, reply }).select("*").single();
     if (error) throw new Error(error.message);
     return NextResponse.json({ reply: data }, { status: 201 });
