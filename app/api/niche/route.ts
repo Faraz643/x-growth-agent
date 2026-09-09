@@ -13,9 +13,9 @@ export async function GET() {
 export async function PUT(request: Request) {
   const appUserId = await getCurrentAppUserId();
   if (!appUserId) return NextResponse.json({ error: "Session not ready" }, { status: 401 });
-  const body = await request.json();
-  const topics = Array.isArray(body.topics) ? body.topics.filter((value: unknown): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean).slice(0, 20) : [];
-  const expertise = Array.isArray(body.expertise) ? body.expertise.filter((value: unknown): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean).slice(0, 20) : [];
+  const body: Record<string, unknown> = await request.json();
+  const topics = Array.isArray(body.topics) ? body.topics.filter((value: unknown): value is string => typeof value === "string").map((value: string) => value.trim()).filter(Boolean).slice(0, 20) : [];
+  const expertise = Array.isArray(body.expertise) ? body.expertise.filter((value: unknown): value is string => typeof value === "string").map((value: string) => value.trim()).filter(Boolean).slice(0, 20) : [];
   const audience = typeof body.audience === "string" ? body.audience.slice(0, 500) : "";
   const voiceNotes = typeof body.voice_notes === "string" ? body.voice_notes.slice(0, 1000) : typeof body.voiceNotes === "string" ? body.voiceNotes.slice(0, 1000) : "";
   const { data, error } = await getSupabaseAdmin().from("niche_profiles").upsert({ app_user_id: appUserId, topics, audience, expertise, voice_notes: voiceNotes, updated_at: new Date().toISOString() }, { onConflict: "app_user_id" }).select("topics,audience,expertise,voice_notes").single();
