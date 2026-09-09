@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
   const redirect = (params: Record<string, string>) => {
     const url = new URL("/", request.url);
     Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(url);
+    response.cookies.delete("x_oauth_state");
+    response.cookies.delete("x_oauth_verifier");
+    return response;
   };
 
   const code = request.nextUrl.searchParams.get("code");
@@ -64,9 +67,5 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not connect your X account";
     return redirect({ x_error: message });
-  } finally {
-    const response = redirect({ x_connected: "1" });
-    response.cookies.delete("x_oauth_state");
-    response.cookies.delete("x_oauth_verifier");
   }
 }
