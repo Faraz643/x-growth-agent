@@ -5,11 +5,14 @@ const required = (name: string) => {
 };
 
 export function getServerEnv() {
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseSecretKey) throw new Error("Missing environment variable: SUPABASE_SECRET_KEY");
+
   return {
     xClientId: required("X_CLIENT_ID"),
     xRedirectUri: required("X_REDIRECT_URI"),
     supabaseUrl: required("NEXT_PUBLIC_SUPABASE_URL"),
-    supabaseSecretKey: required("SUPABASE_SECRET_KEY"),
+    supabaseSecretKey,
     encryptionKey: required("XGA_ENCRYPTION_KEY"),
   };
 }
